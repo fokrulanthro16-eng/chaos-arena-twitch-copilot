@@ -1,0 +1,36 @@
+{
+  "name": "chaos-arena-twitch-copilot",
+  "version": "3.0.0",
+  "description": "CHAOS//ARENA: Live Twitch Chat vs. Streamer AI Game Master & Sabotage Engine",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "mock": "node scripts/mock-chat.js",
+    "demo": "node scripts/simulation-cycle.js",
+    "screenshots": "python scripts/capture_screenshots.py",
+    "video": "python scripts/record_demo_video.py"
+  },
+  "keywords": [
+    "twitch",
+    "streamer",
+    "copilot",
+    "game-master",
+    "canvas",
+    "websocket",
+    "tmi.js",
+    "web-audio",
+    "speech-recognition"
+  ],
+  "author": "FOKRUL ISLAM (fokrulanthro16-eng)",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "tmi.js": "^1.8.5",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

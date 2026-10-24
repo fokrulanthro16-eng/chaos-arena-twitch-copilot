@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHAOS//ARENA - OBS Transparent Browser Source</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      background: transparent !important;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .glow-cyan { text-shadow: 0 0 14px rgba(0, 240, 255, 0.8); }
+    .glow-pink { text-shadow: 0 0 14px rgba(255, 0, 127, 0.8); }
+    .glow-gold { text-shadow: 0 0 14px rgba(255, 190, 11, 0.8); }
+
+    .hud-glass {
+      background: rgba(10, 14, 30, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .holo-card {
+      background: linear-gradient(135deg, rgba(16, 24, 52, 0.95), rgba(7, 10, 24, 0.95));
+      border: 2px solid transparent;
+      border-image: linear-gradient(45deg, #00f0ff, #ff007f, #ffbe0b, #00ff88) 1;
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.4), inset 0 0 20px rgba(255, 0, 127, 0.2);
+    }
+  </style>
+</head>
+<body class="relative w-full h-full select-none">
+
+  <!-- 60FPS Transparent Combat & Physics Canvas -->
+  <canvas id="obsCanvas" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></canvas>
+
+  <!-- Overlay HUD Floating Layer -->
+  <div class="relative z-20 p-6 pointer-events-none flex flex-col justify-between h-full">
+
+    <!-- Top Row: AI Director Mutation + Prediction Odds + Leaderboard -->
+    <div class="space-y-3">
+      <!-- AI Director Mutation Banner -->
+      <div id="mutationBanner" class="hud-glass rounded-xl px-4 py-2 border-l-4 border-l-cyan-400 flex items-center justify-between gap-4 max-w-3xl mx-auto">
+        <div class="flex items-center gap-2">
+          <span class="font-orbitron font-black text-xs text-cyan-400">🌐 AI DIRECTOR:</span>
+          <span id="mutationName" class="font-orbitron font-bold text-xs text-white glow-cyan">
+            HYPERDRIVE OVERCLOCK
+          </span>
+        </div>
+        <div class="font-mono text-xs flex items-center gap-2">
+          <span id="mutationDesc" class="text-slate-300">Hazards 1.5x speed active!</span>
+          <span id="mutationTimer" class="rounded bg-cyan-500/20 px-2 py-0.5 text-cyan-300 font-bold">18s</span>
+        </div>
+      </div>
+
+      <!-- Top Widgets Row -->
+      <div class="flex items-start justify-between gap-4">
+        <!-- Live Prediction Odds -->
+        <div class="hud-glass rounded-xl p-3 border-l-4 border-l-amber-400 w-72">
+          <div class="flex items-center justify-between border-b border-white/10 pb-1 mb-1.5 font-orbitron text-[10px] font-bold text-amber-300">
+            <span>⚡ WILL STREAMER SURVIVE?</span>
+            <span id="predTimer" class="font-mono text-xs text-amber-400">54s</span>
+          </div>
+          <div class="h-2 w-full rounded-full bg-slate-900 overflow-hidden flex border border-white/10 mb-1.5">
+            <div id="surviveBar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 60%"></div>
+            <div id="ripBar" class="h-full bg-pink-500 transition-all duration-300" style="width: 40%"></div>
+          </div>
+          <div class="flex items-center justify-between font-mono text-[9px]">
+            <span class="text-cyan-300 font-bold" id="surviveLabel">SURVIVE (60%)</span>
+            <span class="text-pink-400 font-bold" id="ripLabel">RIP (40%)</span>
+          </div>
+        </div>
+
+        <!-- Center: Streamer Health / Shield HUD -->
+        <div class="hud-glass rounded-xl p-3 min-w-[200px] text-center">
+          <div class="font-orbitron text-[10px] text-slate-400 uppercase tracking-widest">STREAMER STATUS</div>
+          <div class="flex items-center justify-center gap-3 mt-1 font-mono text-xs font-bold">
+            <span class="text-emerald-400" id="streamerHpLabel">HP: 1000/1000</span>
+            <span class="text-cyan-300" id="streamerShieldLabel">SHIELD: 500/500</span>
+          </div>
+        </div>
+
+        <!-- Right: Strike Combo & Leaderboard -->
+        <div class="space-y-2">
+          <div class="hud-glass rounded-xl p-2.5 w-52 flex items-center justify-between border-l-4 border-l-cyan-400">
+            <div>
+              <div class="font-mono text-[9px] text-cyan-400 font-bold uppercase tracking-widest">COMBO</div>
+              <div id="comboMultiplier" class="font-orbitron text-xl font-black text-cyan-300 glow-cyan">x1.0</div>
+            </div>
+            <div id="comboHits" class="font-mono text-xs text-slate-300 font-bold">0 HITS</div>
+          </div>
+
+          <div class="hud-glass rounded-xl p-2.5 w-52">
+            <div class="flex items-center justify-between border-b border-white/10 pb-1 mb-1 font-orbitron text-[10px] font-bold text-cyan-300">
+              <span>👑 TOP RAIDERS</span>
+              <span class="font-mono text-[9px] text-slate-400">XP</span>
+            </div>
+            <div id="leaderboardList" class="space-y-1 font-mono text-[10px]">
+              <div class="text-slate-400">Awaiting strikes...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Holographic 3D MVP Kill-Cam Modal -->
+    <div id="mvpModal" class="hidden absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div class="holo-card rounded-2xl p-6 max-w-sm w-full text-center space-y-4">
+        <div class="font-orbitron text-xs font-black text-amber-400 uppercase tracking-widest">
+          ⚡ HOLOGRAPHIC KILL-CAM MVP ⚡
+        </div>
+        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-400 via-pink-500 to-amber-400 p-1 shadow-[0_0_25px_rgba(255,0,127,0.5)]">
+          <div class="flex h-full w-full items-center justify-center rounded-full bg-slate-950 font-orbitron text-3xl font-black text-white">
+            👑
+          </div>
+        </div>
+        <div>
+          <div id="mvpUsername" class="font-orbitron text-2xl font-black text-white glow-cyan">VORTEX</div>
+          <div id="mvpRole" class="font-mono text-xs text-pink-400 font-bold mt-0.5">[VIP] STREAMER SLAYER</div>
+        </div>
+        <div class="rounded-xl bg-black/40 p-3 border border-white/10 grid grid-cols-2 gap-2 font-mono text-xs">
+          <div>
+            <span class="text-slate-400 text-[10px] block">DAMAGE DEALT</span>
+            <span id="mvpDamage" class="font-bold text-cyan-300">1,480 DMG</span>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[10px] block">COMMAND</span>
+            <span id="mvpCommand" class="font-bold text-pink-400">!laser CRIT</span>
+          </div>
+        </div>
+        <div class="font-mono text-xs text-amber-300 font-bold">
+          🏆 +1,000 XP & BOUNTY SPARKS AWARDED!
+        </div>
+      </div>
+    </div>
+
+    <div></div>
+
+  </div>
+
+  <script src="/js/audio-synth.js"></script>
+  <script src="/js/canvas-engine.js"></script>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = str => String(str || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+    let canvasEngine = null;
+    let ws = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      canvasEngine = new ChaosCanvasEngine('obsCanvas', { mode: 'transparent' });
+
+      window.addEventListener('click', () => {
+        if (window.audioEngine) window.audioEngine.unlock();
+      }, { once: true });
+
+      connectWebSocket();
+    });
+
+    function connectWebSocket() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+      ws.onopen = () => {
+        console.log('[OBS Overlay] Linked to Chaos Arena');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleServerEvent(data);
+        } catch (e) {}
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectWebSocket, 1500);
+      };
+    }
+
+    function handleServerEvent(data) {
+      if (data.type === 'snapshot') {
+        if (data.streamer) updateStreamerHUD(data.streamer);
+        if (data.boss) canvasEngine.updateBoss(data.boss);
+        if (data.combo) updateComboUI(data.combo);
+        if (data.prediction) updatePredictionUI(data.prediction);
+        if (data.activeMutation) updateMutationUI(data.activeMutation);
+        if (data.leaderboard) updateLeaderboardUI(data.leaderboard);
+      }
+      else if (data.type === 'hazard_spawn') {
+        if (canvasEngine) canvasEngine.spawnChatHazard(data.hazardType, data.attacker, data.color);
+      }
+      else if (data.type === 'sonic_emp') {
+        if (canvasEngine) canvasEngine.triggerSonicEmp(data.attacker);
+      }
+      else if (data.type === 'streamer_damaged') {
+        updateStreamerHUD(data.streamer);
+        if (canvasEngine) canvasEngine.updateStreamer(data.streamer);
+      }
+      else if (data.type === 'streamer_healed' || data.type === 'streamer_revive' || data.type === 'streamer_ko') {
+        updateStreamerHUD(data.streamer);
+        if (canvasEngine) canvasEngine.updateStreamer(data.streamer);
+      }
+      else if (data.type === 'mvp_card') {
+        showMvpCard(data.mvp);
+        if (window.audioEngine) window.audioEngine.speak(data.announcement);
+      }
+      else if (data.type === 'boss_taunt') {
+        if (window.audioEngine) window.audioEngine.speak(data.text || data.announcement);
+      }
+      else if (data.type === 'boss_update') {
+        if (canvasEngine && data.boss) canvasEngine.updateBoss(data.boss);
+      }      else if (data.type === 'world_mutation') {
+        updateMutationUI(data.mutation);
+        if (canvasEngine) canvasEngine.setMutation(data.mutation);
+        if (window.audioEngine) {
+          window.audioEngine.playPhaseSiren();
+          window.audioEngine.speak(data.announcement);
+        }
+      }
+      else if (data.type === 'prediction_tick') {
+        $('predTimer').textContent = `${data.timer}s`;
+        updateOddsBar(data.surviveSparks, data.ripSparks);
+      }
+      else if (data.type === 'prediction_update') {
+        updatePredictionUI(data.prediction);
+      }
+      else if (data.type === 'prediction_resolved') {
+        if (window.audioEngine) {
+          window.audioEngine.playChime();
+          window.audioEngine.speak(data.announcement);
+        }
+      }
+      else if (data.type === 'prediction_new_round') {
+        updatePredictionUI(data.prediction);
+        if (window.audioEngine) window.audioEngine.speak(data.announcement);
+      }
+    }
+
+    function updateStreamerHUD(s) {
+      $('streamerHpLabel').textContent = `HP: ${s.hp}/${s.maxHp}`;
+      $('streamerShieldLabel').textContent = `SHIELD: ${s.shield}/${s.maxShield}`;
+      if (s.hp <= 0) {
+        $('streamerHpLabel').textContent = 'STATUS: KNOCKED OUT!';
+        $('streamerHpLabel').className = 'text-pink-400 font-bold';
+      } else {
+        $('streamerHpLabel').className = 'text-emerald-400 font-bold';
+      }
+    }
+
+    function updateMutationUI(m) {
+      $('mutationName').textContent = m.name;
+      $('mutationDesc').textContent = m.desc;
+      $('mutationTimer').textContent = `${m.timer || 20}s`;
+    }
+
+    function updatePredictionUI(p) {
+      $('predTimer').textContent = `${p.timer}s`;
+      updateOddsBar(p.surviveSparks, p.ripSparks);
+    }
+
+    function updateOddsBar(survive, rip) {
+      const total = survive + rip;
+      const survivePct = total > 0 ? Math.round((survive / total) * 100) : 50;
+      const ripPct = 100 - survivePct;
+      $('surviveBar').style.width = survivePct + '%';
+      $('ripBar').style.width = ripPct + '%';
+      $('surviveLabel').textContent = `SURVIVE (${survivePct}%)`;
+      $('ripLabel').textContent = `RIP (${ripPct}%)`;
+    }
+
+    function updateComboUI(combo) {
+      $('comboMultiplier').textContent = `x${combo.multiplier.toFixed(1)}`;
+      $('comboHits').textContent = `${combo.count} HITS`;
+    }
+
+    function updateLeaderboardUI(leaders) {
+      const container = $('leaderboardList');
+      if (!leaders || leaders.length === 0) return;
+      container.innerHTML = leaders.map((u, i) => `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 truncate">
+            <span class="text-[9px] font-bold ${i === 0 ? 'text-amber-400' : 'text-slate-400'}">#${i + 1}</span>
+            <span class="font-bold truncate" style="color: ${u.color}">${esc(u.username)}</span>
+          </div>
+          <span class="text-[10px] text-cyan-300 font-bold">${u.xp} XP</span>
+        </div>
+      `).join('');
+    }
+
+    function showMvpCard(mvp) {
+      $('mvpUsername').textContent = mvp.username;
+      $('mvpRole').textContent = `${mvp.role} · ${mvp.title}`;
+      $('mvpDamage').textContent = `${mvp.damage.toLocaleString()} DMG`;
+      $('mvpCommand').textContent = mvp.winningCommand;
+      $('mvpModal').classList.remove('hidden');
+
+      setTimeout(() => {
+        $('mvpModal').classList.add('hidden');
+      }, 7000);
+    }
+  </script>
+</body>
+</html>
+

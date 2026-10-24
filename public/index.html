@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHAOS//ARENA: Streamer vs. Chat AI Broadcast Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #03040a;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .glow-cyan { text-shadow: 0 0 14px rgba(0, 240, 255, 0.7); }
+    .glow-pink { text-shadow: 0 0 14px rgba(255, 0, 127, 0.7); }
+    .glow-gold { text-shadow: 0 0 14px rgba(255, 190, 11, 0.7); }
+
+    .hud-glass {
+      background: rgba(10, 14, 30, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    .pulse-dot { animation: pulseDot 2s infinite ease-in-out; }
+
+    /* 3D Holographic MVP Trading Card */
+    .holo-card {
+      background: linear-gradient(135deg, rgba(16, 24, 52, 0.95), rgba(7, 10, 24, 0.95));
+      border: 2px solid transparent;
+      border-image: linear-gradient(45deg, #00f0ff, #ff007f, #ffbe0b, #00ff88) 1;
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.4), inset 0 0 20px rgba(255, 0, 127, 0.2);
+      animation: holoFloat 3s infinite ease-in-out;
+    }
+    @keyframes holoFloat {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-8px) scale(1.02); }
+    }
+
+    /* Custom chat scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.25); border-radius: 4px; }
+  </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden select-none">
+
+  <!-- Top Studio Bar with Instant Twitch Bridge, Mic Sonic Power, Audio Toggles -->
+  <header class="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-black/85 border-b border-white/10 z-30">
+    <!-- Branding -->
+    <div class="flex items-center gap-3">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 via-pink-500 to-amber-400 p-0.5">
+        <div class="flex h-full w-full items-center justify-center rounded-[6px] bg-black font-orbitron font-black text-cyan-300 text-sm">
+          ⚡
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-orbitron font-black text-sm md:text-base tracking-widest text-cyan-400 glow-cyan">
+            CHAOS//ARENA
+          </span>
+          <span class="rounded bg-pink-500/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-pink-300 border border-pink-500/30">
+            GRAND PRIZE v3.0
+          </span>
+        </div>
+        <p class="font-mono text-[9px] text-slate-400 uppercase tracking-wider hidden sm:block">
+          Live Streamer vs. Chat AI Broadcast Engine
+        </p>
+      </div>
+    </div>
+
+    <!-- Center: 1-Click Live Twitch Channel Bridge -->
+    <div class="flex items-center gap-2 font-mono text-xs">
+      <div class="flex items-center rounded-lg bg-white/5 border border-white/10 px-2 py-1">
+        <span class="text-slate-400 text-[11px] mr-1">twitch.tv/</span>
+        <input id="twitchInput" type="text" placeholder="channel (e.g. shroud)" class="bg-transparent text-white font-mono text-xs w-28 sm:w-36 focus:outline-none placeholder-slate-500">
+        <button onclick="handleTwitchConnect()" class="rounded bg-cyan-500/20 px-2 py-0.5 font-bold text-cyan-300 hover:bg-cyan-500/30 transition-all cursor-pointer">
+          CONNECT
+        </button>
+      </div>
+      <div id="twitchStatusBadge" class="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1 border border-slate-700 text-[10px]">
+        <span id="twitchDot" class="h-2 w-2 rounded-full bg-cyan-400 pulse-dot"></span>
+        <span id="twitchText" class="text-slate-300">LOCAL SIM</span>
+      </div>
+    </div>
+
+    <!-- Right Controls: Mic Sonic EMP, Stage Mode, Simulator, SFX, OBS -->
+    <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+      <!-- Microphone Sonic EMP Power Button -->
+      <button id="micBtn" onclick="toggleMicrophonePower()" class="flex items-center gap-1.5 rounded-lg bg-violet-950/50 px-2.5 py-1.5 border border-violet-500/40 text-violet-300 hover:bg-violet-900/60 transition-all cursor-pointer shadow-[0_0_12px_rgba(138,43,226,0.3)]">
+        <span id="micIcon">🎙️</span>
+        <span id="micLabel">ENABLE MIC SONIC POWER</span>
+      </button>
+
+      <!-- Stage Mode Toggle -->
+      <button id="stageBtn" onclick="toggleStageMode()" class="flex items-center gap-1.5 rounded-lg bg-cyan-950/40 px-2.5 py-1.5 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/50 transition-all cursor-pointer">
+        <span id="stageIcon">🕹️</span>
+        <span id="stageLabel">SYNTHWAVE</span>
+      </button>
+
+      <!-- Crowd Auto-Pilot Simulator -->
+      <button id="simBtn" onclick="toggleSimulator()" class="flex items-center gap-1.5 rounded-lg bg-emerald-950/40 px-2.5 py-1.5 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/50 transition-all cursor-pointer">
+        <span class="pulse-dot h-2 w-2 rounded-full bg-emerald-400"></span>
+        <span id="simLabel">CROWD: AUTO-PILOT ON</span>
+      </button>
+
+      <!-- SFX Toggle -->
+      <button id="sfxBtn" onclick="toggleAudioSfx()" class="flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1.5 border border-white/10 text-slate-300 hover:bg-white/10 cursor-pointer">
+        <span id="sfxIcon">🔊</span>
+      </button>
+
+      <!-- OBS Link -->
+      <a href="/overlay" target="_blank" class="flex items-center gap-1.5 rounded-lg bg-pink-950/40 px-2.5 py-1.5 border border-pink-500/30 text-pink-300 hover:bg-pink-900/50 cursor-pointer">
+        <span>📺</span>
+        <span class="hidden md:inline">OBS</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Broadcast Studio Body -->
+  <div class="flex-grow flex flex-col lg:flex-row overflow-hidden relative">
+
+    <!-- LEFT 72%: Stream Stage & 60FPS Interactive Physics Canvas -->
+    <div class="flex-grow lg:w-[72%] relative flex flex-col justify-between overflow-hidden bg-black">
+
+      <!-- Live Webcam Feed (for Webcam mode) -->
+      <video id="webcamVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden z-0"></video>
+
+      <!-- 60FPS Interactive Combat & Physics Canvas -->
+      <canvas id="arenaCanvas" class="absolute inset-0 w-full h-full z-10 pointer-events-auto cursor-crosshair"></canvas>
+
+      <!-- Overlay HUD Layers (Positioned over the stage) -->
+      <div class="relative z-20 p-4 pointer-events-none flex flex-col justify-between h-full">
+
+        <!-- Top HUD: AI Game Director Mutation Banner + Crowd Prediction + Combo -->
+        <div class="space-y-3">
+
+          <!-- Autonomous AI Game Director World Mutation Banner -->
+          <div id="mutationBanner" class="hud-glass rounded-xl px-4 py-2 border-l-4 border-l-cyan-400 flex items-center justify-between gap-4 max-w-4xl mx-auto shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+            <div class="flex items-center gap-2.5">
+              <span class="font-orbitron font-black text-base text-cyan-400">🌐 AI DIRECTOR:</span>
+              <span id="mutationName" class="font-orbitron font-bold text-xs md:text-sm text-white glow-cyan">
+                HYPERDRIVE OVERCLOCK
+              </span>
+            </div>
+            <div class="flex items-center gap-3 font-mono text-xs">
+              <span id="mutationDesc" class="text-slate-300 hidden md:inline">
+                Hazards move 1.5x faster · 2x Raid XP active!
+              </span>
+              <span id="mutationTimer" class="rounded bg-cyan-500/20 px-2 py-0.5 text-cyan-300 font-bold border border-cyan-500/30">
+                18s
+              </span>
+            </div>
+          </div>
+
+          <!-- Top Status Row: Prediction Widget + Streamer Status + Leaderboard -->
+          <div class="flex items-start justify-between gap-4">
+
+            <!-- Live Twitch Prediction & Crowd Betting Widget -->
+            <div id="predictionWidget" class="hud-glass rounded-xl p-3 border-l-4 border-l-amber-400 w-80 pointer-events-auto">
+              <div class="flex items-center justify-between border-b border-white/10 pb-1 mb-2">
+                <span class="font-orbitron text-[10px] font-bold text-amber-300 tracking-wider">⚡ TWITCH PREDICTION</span>
+                <span id="predTimer" class="font-mono text-xs font-bold text-amber-400">54s REMAINING</span>
+              </div>
+              <div class="text-[11px] font-mono text-slate-200 font-semibold mb-2">
+                WILL STREAMER SURVIVE 60 SECONDS?
+              </div>
+              <!-- Dynamic Odds Bar -->
+              <div class="h-2.5 w-full rounded-full bg-slate-900 overflow-hidden flex border border-white/10 mb-2">
+                <div id="surviveBar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 60%"></div>
+                <div id="ripBar" class="h-full bg-pink-500 transition-all duration-300" style="width: 40%"></div>
+              </div>
+              <div class="flex items-center justify-between font-mono text-[10px] mb-2.5">
+                <span class="text-cyan-300 font-bold" id="surviveLabel">SURVIVE: 5,400 Sparks (60%)</span>
+                <span class="text-pink-400 font-bold" id="ripLabel">RIP: 3,600 Sparks (40%)</span>
+              </div>
+              <!-- Quick Bet Buttons -->
+              <div class="grid grid-cols-2 gap-2 font-mono text-[10px]">
+                <button onclick="handleBet('survive', 300)" class="rounded bg-cyan-500/20 py-1 font-bold text-cyan-300 border border-cyan-400/30 hover:bg-cyan-500/30 active:scale-95 cursor-pointer">
+                  BET SURVIVE (+300)
+                </button>
+                <button onclick="handleBet('rip', 300)" class="rounded bg-pink-500/20 py-1 font-bold text-pink-300 border border-pink-400/30 hover:bg-pink-500/30 active:scale-95 cursor-pointer">
+                  BET RIP (+300)
+                </button>
+              </div>
+            </div>
+
+            <!-- Center: Streamer Cyber-Ship Health & Controls HUD -->
+            <div class="hud-glass rounded-xl p-3 min-w-[200px] text-center">
+              <div class="font-orbitron text-[10px] text-slate-400 uppercase tracking-widest">STREAMER CYBER-SHIP</div>
+              <div class="flex items-center justify-center gap-3 mt-1 font-mono text-xs font-bold">
+                <span class="text-emerald-400" id="streamerHpLabel">HP: 1000/1000</span>
+                <span class="text-cyan-300" id="streamerShieldLabel">SHIELD: 500/500</span>
+              </div>
+              <div class="flex items-center justify-center gap-2 mt-2 font-mono text-[10px] text-slate-400">
+                <span class="rounded bg-white/5 px-2 py-0.5 border border-white/10 text-cyan-300">SPACE: DASH</span>
+                <span class="rounded bg-white/5 px-2 py-0.5 border border-white/10 text-violet-300">E / MIC: SONIC EMP</span>
+              </div>
+            </div>
+
+            <!-- Right: Combo Multiplier & Top 5 Raiders Leaderboard -->
+            <div class="space-y-2">
+              <div class="hud-glass rounded-xl p-2.5 w-56 flex items-center justify-between border-l-4 border-l-cyan-400">
+                <div>
+                  <div class="font-mono text-[9px] text-cyan-400 font-bold uppercase tracking-widest">STRIKE COMBO</div>
+                  <div id="comboMultiplier" class="font-orbitron text-xl font-black text-cyan-300 glow-cyan">x1.0</div>
+                </div>
+                <div id="comboHits" class="font-mono text-xs text-slate-400 font-bold">0 HITS</div>
+              </div>
+
+              <div class="hud-glass rounded-xl p-2.5 w-56">
+                <div class="flex items-center justify-between border-b border-white/10 pb-1 mb-1.5 font-orbitron text-[10px] font-bold text-cyan-300">
+                  <span>👑 TOP RAIDERS</span>
+                  <span class="font-mono text-[9px] text-slate-400">XP</span>
+                </div>
+                <div id="leaderboardList" class="space-y-1 font-mono text-[10px]">
+                  <div class="text-slate-500">Awaiting strikes...</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Center: Holographic 3D CSS MVP Kill-Cam Trading Card Modal -->
+        <div id="mvpModal" class="hidden absolute inset-0 z-50 flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
+          <div class="holo-card rounded-2xl p-6 max-w-sm w-full text-center space-y-4">
+            <div class="font-orbitron text-xs font-black text-amber-400 uppercase tracking-widest">
+              ⚡ HOLOGRAPHIC KILL-CAM MVP ⚡
+            </div>
+            <!-- Avatar Ring -->
+            <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-400 via-pink-500 to-amber-400 p-1 shadow-[0_0_25px_rgba(255,0,127,0.5)]">
+              <div class="flex h-full w-full items-center justify-center rounded-full bg-slate-950 font-orbitron text-3xl font-black text-white">
+                👑
+              </div>
+            </div>
+            <div>
+              <div id="mvpUsername" class="font-orbitron text-2xl font-black text-white glow-cyan">VORTEX</div>
+              <div id="mvpRole" class="font-mono text-xs text-pink-400 font-bold mt-0.5">[VIP] STREAMER SLAYER</div>
+            </div>
+            <div class="rounded-xl bg-black/40 p-3 border border-white/10 grid grid-cols-2 gap-2 font-mono text-xs">
+              <div>
+                <span class="text-slate-400 text-[10px] block">TOTAL DAMAGE</span>
+                <span id="mvpDamage" class="font-bold text-cyan-300">1,480 DMG</span>
+              </div>
+              <div>
+                <span class="text-slate-400 text-[10px] block">KNOCKOUT COMMAND</span>
+                <span id="mvpCommand" class="font-bold text-pink-400">!laser CRIT</span>
+              </div>
+            </div>
+            <div class="font-mono text-xs text-amber-300 font-bold">
+              🏆 +1,000 XP & BOUNTY SPARKS AWARDED!
+            </div>
+            <button onclick="dismissMvpModal()" class="rounded-lg bg-cyan-500 px-6 py-2 font-orbitron text-xs font-black text-black hover:bg-cyan-400 transition-all cursor-pointer">
+              CONTINUE ARENA
+            </button>
+          </div>
+        </div>
+
+        <!-- Bottom Streamer Interactive Control Bar -->
+        <div class="pointer-events-auto mt-auto pt-2">
+          <div class="hud-glass rounded-2xl p-2.5 border border-white/10 flex flex-wrap items-center justify-between gap-2">
+            <!-- Hazards & Attacks -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="font-mono text-[10px] text-slate-400 uppercase font-semibold mr-1">SPAWN:</span>
+              <button onclick="triggerHazard('meteor')" class="rounded-lg bg-amber-500/20 px-2.5 py-1.5 font-orbitron text-xs font-bold text-amber-300 border border-amber-400/30 hover:bg-amber-500/30 active:scale-95 cursor-pointer">
+                ☄️ Meteor
+              </button>
+              <button onclick="triggerHazard('laser')" class="rounded-lg bg-pink-500/20 px-2.5 py-1.5 font-orbitron text-xs font-bold text-pink-300 border border-pink-400/30 hover:bg-pink-500/30 active:scale-95 cursor-pointer">
+                ⚡ Sniper Laser
+              </button>
+              <button onclick="triggerHazard('gravity')" class="rounded-lg bg-violet-500/20 px-2.5 py-1.5 font-orbitron text-xs font-bold text-violet-300 border border-violet-400/30 hover:bg-violet-500/30 active:scale-95 cursor-pointer">
+                🌀 Black Hole
+              </button>
+              <button onclick="triggerHazard('reverse')" class="rounded-lg bg-pink-950/40 px-2.5 py-1.5 font-orbitron text-xs font-bold text-pink-400 border border-pink-500/30 hover:bg-pink-900/50 active:scale-95 cursor-pointer">
+                🔄 Invert Controls
+              </button>
+              <button onclick="triggerHazard('heal')" class="rounded-lg bg-emerald-500/20 px-2.5 py-1.5 font-orbitron text-xs font-bold text-emerald-300 border border-emerald-400/30 hover:bg-emerald-500/30 active:scale-95 cursor-pointer">
+                🧪 Repair Orb
+              </button>
+            </div>
+
+            <!-- Ultimate & Sabotages -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button onclick="triggerSonicEmpButton()" class="rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 px-3.5 py-1.5 font-orbitron text-xs font-black text-black hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+                ⚡ SONIC EMP BLAST
+              </button>
+              <button onclick="triggerSabotageAction('wheel')" class="rounded-lg bg-amber-950/40 px-2.5 py-1.5 font-orbitron text-xs font-bold text-amber-300 border border-amber-500/40 hover:bg-amber-900/50 active:scale-95 cursor-pointer">
+                🎡 Wheel of Chaos
+              </button>
+              <button onclick="reviveStreamer()" class="rounded-lg bg-white/5 px-2 py-1.5 font-mono text-[11px] text-slate-400 hover:text-white cursor-pointer" title="Revive Streamer">
+                💖 Revive
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- RIGHT 28%: True Twitch-Styled Live Chat Feed -->
+    <div class="lg:w-[28%] flex flex-col justify-between bg-[#0e1222] border-l border-white/10 z-20">
+
+      <!-- Chat Header -->
+      <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-black/40">
+        <div class="flex items-center gap-2">
+          <span class="font-orbitron font-bold text-xs tracking-wider text-slate-200">STREAM CHAT</span>
+          <span id="chatTwitchBadge" class="rounded bg-cyan-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold text-cyan-300 border border-cyan-500/20">
+            LOCAL SIM
+          </span>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 pulse-dot"></span>
+          <span id="chatViewers">1,840</span>
+        </div>
+      </div>
+
+      <!-- Quick Command & Betting Chips -->
+      <div class="flex flex-wrap gap-1 px-3 py-2 bg-black/20 border-b border-white/5 font-mono text-[10px]">
+        <button onclick="quickChat('!bet survive 500')" class="rounded bg-cyan-500/10 px-2 py-0.5 text-cyan-300 hover:bg-cyan-500/20 border border-cyan-500/20">!bet survive</button>
+        <button onclick="quickChat('!bet rip 500')" class="rounded bg-pink-500/10 px-2 py-0.5 text-pink-300 hover:bg-pink-500/20 border border-pink-500/20">!bet rip</button>
+        <button onclick="quickChat('!meteor')" class="rounded bg-white/5 px-2 py-0.5 text-amber-300 hover:bg-white/10">!meteor</button>
+        <button onclick="quickChat('!laser')" class="rounded bg-white/5 px-2 py-0.5 text-pink-300 hover:bg-white/10">!laser</button>
+        <button onclick="quickChat('!gravity')" class="rounded bg-white/5 px-2 py-0.5 text-violet-300 hover:bg-white/10">!gravity</button>
+        <button onclick="quickChat('!reverse')" class="rounded bg-white/5 px-2 py-0.5 text-pink-400 hover:bg-white/10">!reverse</button>
+        <button onclick="quickChat('!heal')" class="rounded bg-white/5 px-2 py-0.5 text-emerald-400 hover:bg-white/10">!heal</button>
+      </div>
+
+      <!-- Live Messages Scroll Container -->
+      <div id="chatFeed" class="flex-grow overflow-y-auto p-3 space-y-2 font-mono text-xs">
+        <!-- Messages pop in here -->
+      </div>
+
+      <!-- Emote Reaction Bar -->
+      <div class="flex items-center justify-around px-3 py-1.5 border-t border-white/5 bg-black/20 text-sm">
+        <button onclick="sendEmote('🔥')" class="hover:scale-125 transition-transform cursor-pointer">🔥</button>
+        <button onclick="sendEmote('💜')" class="hover:scale-125 transition-transform cursor-pointer">💜</button>
+        <button onclick="sendEmote('💀')" class="hover:scale-125 transition-transform cursor-pointer">💀</button>
+        <button onclick="sendEmote('🎉')" class="hover:scale-125 transition-transform cursor-pointer">🎉</button>
+        <button onclick="sendEmote('👑')" class="hover:scale-125 transition-transform cursor-pointer">👑</button>
+        <button onclick="sendEmote('⚡')" class="hover:scale-125 transition-transform cursor-pointer">⚡</button>
+      </div>
+
+      <!-- Chat Input Field -->
+      <div class="p-3 border-t border-white/10 bg-black/40">
+        <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
+          <input id="chatInput" type="text" placeholder="Type message or command (!meteor, !bet)..." autocomplete="off" class="flex-grow rounded-lg bg-white/5 px-3 py-2 text-xs font-mono text-white placeholder-slate-500 border border-white/10 focus:outline-none focus:border-cyan-400">
+          <button type="submit" class="rounded-lg bg-cyan-500 px-3.5 py-2 font-orbitron text-xs font-bold text-black hover:bg-cyan-400 active:scale-95 transition-all cursor-pointer">
+            CHAT
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="/js/audio-synth.js"></script>
+  <script src="/js/canvas-engine.js"></script>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = str => String(str || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+    let canvasEngine = null;
+    let ws = null;
+    let stageMode = 'synthwave';
+    let webcamStream = null;
+    let isSimulatorOn = true;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      canvasEngine = new ChaosCanvasEngine('arenaCanvas', { mode: 'synthwave' });
+
+      // Unlock Audio context on first user click
+      document.body.addEventListener('click', () => {
+        if (window.audioEngine) window.audioEngine.unlock();
+      }, { once: true });
+
+      // Streamer Hit hook
+      window.onStreamerHit = (damage, attacker, weaponType) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: 'streamer_hit', damage, attacker, weaponType }));
+        }
+      };
+
+      // Streamer Catch Heal hook
+      window.onStreamerHeal = (amount) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: 'streamer_heal', amount }));
+        }
+      };
+
+      connectWebSocket();
+    });
+
+    // --- WebSocket Event Bridge ---
+    function connectWebSocket() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+      ws.onopen = () => {
+        console.log('[Chaos Arena] WebSocket Linked');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleServerEvent(data);
+        } catch (e) {
+          console.error('[WS Error]', e);
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectWebSocket, 1500);
+      };
+    }
+
+    function handleServerEvent(data) {
+      if (data.type === 'snapshot') {
+        if (data.streamer) updateStreamerHUD(data.streamer);
+        if (data.boss) canvasEngine.updateBoss(data.boss);
+        if (data.combo) updateComboUI(data.combo);
+        if (data.prediction) updatePredictionUI(data.prediction);
+        if (data.activeMutation) updateMutationUI(data.activeMutation);
+        if (data.leaderboard) updateLeaderboardUI(data.leaderboard);
+        if (data.messages) {
+          $('chatFeed').innerHTML = '';
+          data.messages.forEach(renderChatMessage);
+        }
+        if (data.twitch) updateTwitchStatusUI(data.twitch);
+      }
+      else if (data.type === 'hazard_spawn') {
+        if (canvasEngine) {
+          canvasEngine.spawnChatHazard(data.hazardType, data.attacker, data.color);
+        }
+      }
+      else if (data.type === 'sonic_emp') {
+        if (canvasEngine) {
+          canvasEngine.triggerSonicEmp(data.attacker);
+        }
+      }
+      else if (data.type === 'streamer_damaged') {
+        updateStreamerHUD(data.streamer);
+        if (canvasEngine) canvasEngine.updateStreamer(data.streamer);
+      }
+      else if (data.type === 'streamer_healed') {
+        updateStreamerHUD(data.streamer);
+        if (canvasEngine) canvasEngine.updateStreamer(data.streamer);
+      }
+      else if (data.type === 'streamer_revive') {
+        updateStreamerHUD(data.streamer);
+        if (canvasEngine) canvasEngine.updateStreamer(data.streamer);
+      }
+      else if (data.type === 'streamer_ko') {
+        updateStreamerHUD(data.streamer);
+        if (canvasEngine) canvasEngine.updateStreamer(data.streamer);
+      }
+      else if (data.type === 'mvp_card') {
+        showMvpCard(data.mvp);
+        if (window.audioEngine) window.audioEngine.speak(data.announcement);
+      }
+      else if (data.type === 'boss_taunt') {
+        if (window.audioEngine) window.audioEngine.speak(data.text || data.announcement);
+      }
+      else if (data.type === 'boss_update') {
+        if (canvasEngine && data.boss) canvasEngine.updateBoss(data.boss);
+      }      else if (data.type === 'world_mutation') {
+        updateMutationUI(data.mutation);
+        if (canvasEngine) canvasEngine.setMutation(data.mutation);
+        if (window.audioEngine) {
+          window.audioEngine.playPhaseSiren();
+          window.audioEngine.speak(data.announcement);
+        }
+      }
+      else if (data.type === 'prediction_tick') {
+        $('predTimer').textContent = `${data.timer}s REMAINING`;
+        updateOddsBar(data.surviveSparks, data.ripSparks);
+      }
+      else if (data.type === 'prediction_update') {
+        updatePredictionUI(data.prediction);
+      }
+      else if (data.type === 'prediction_resolved') {
+        $('predTimer').textContent = data.winTitle;
+        if (window.audioEngine) {
+          window.audioEngine.playChime();
+          window.audioEngine.speak(data.announcement);
+        }
+      }
+      else if (data.type === 'prediction_new_round') {
+        updatePredictionUI(data.prediction);
+        if (window.audioEngine) window.audioEngine.speak(data.announcement);
+      }
+      else if (data.type === 'chat') {
+        renderChatMessage(data.message);
+      }
+      else if (data.type === 'twitch_status') {
+        updateTwitchStatusUI(data);
+        if (data.announcement && window.audioEngine) {
+          window.audioEngine.speak(data.announcement);
+        }
+      }
+      else if (data.type === 'simulator_status') {
+        isSimulatorOn = data.active;
+        $('simLabel').textContent = isSimulatorOn ? 'CROWD: AUTO-PILOT ON' : 'CROWD: PAUSED';
+      }
+    }
+
+    // --- UI Update Handlers ---
+
+    function updateStreamerHUD(s) {
+      $('streamerHpLabel').textContent = `HP: ${s.hp}/${s.maxHp}`;
+      $('streamerShieldLabel').textContent = `SHIELD: ${s.shield}/${s.maxShield}`;
+      if (s.hp <= 0) {
+        $('streamerHpLabel').textContent = 'STATUS: KNOCKED OUT!';
+        $('streamerHpLabel').className = 'text-pink-400 font-bold';
+      } else {
+        $('streamerHpLabel').className = 'text-emerald-400 font-bold';
+      }
+    }
+
+    function updateMutationUI(m) {
+      $('mutationName').textContent = m.name;
+      $('mutationDesc').textContent = m.desc;
+      $('mutationTimer').textContent = `${m.timer || 20}s`;
+    }
+
+    function updatePredictionUI(p) {
+      $('predTimer').textContent = `${p.timer}s REMAINING`;
+      updateOddsBar(p.surviveSparks, p.ripSparks);
+    }
+
+    function updateOddsBar(survive, rip) {
+      const total = survive + rip;
+      const survivePct = total > 0 ? Math.round((survive / total) * 100) : 50;
+      const ripPct = 100 - survivePct;
+
+      $('surviveBar').style.width = survivePct + '%';
+      $('ripBar').style.width = ripPct + '%';
+
+      $('surviveLabel').textContent = `SURVIVE: ${survive.toLocaleString()} (${survivePct}%)`;
+      $('ripLabel').textContent = `RIP: ${rip.toLocaleString()} (${ripPct}%)`;
+    }
+
+    function updateComboUI(combo) {
+      $('comboMultiplier').textContent = `x${combo.multiplier.toFixed(1)}`;
+      $('comboHits').textContent = `${combo.count} HITS`;
+    }
+
+    function updateLeaderboardUI(leaders) {
+      const container = $('leaderboardList');
+      if (!leaders || leaders.length === 0) return;
+      container.innerHTML = leaders.map((u, i) => `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 truncate">
+            <span class="text-[9px] font-bold ${i === 0 ? 'text-amber-400' : 'text-slate-400'}">#${i + 1}</span>
+            <span class="font-bold truncate" style="color: ${u.color}">${esc(u.username)}</span>
+          </div>
+          <span class="text-[10px] text-cyan-300 font-bold">${u.xp} XP</span>
+        </div>
+      `).join('');
+    }
+
+    function showMvpCard(mvp) {
+      $('mvpUsername').textContent = mvp.username;
+      $('mvpRole').textContent = `${mvp.role} · ${mvp.title}`;
+      $('mvpDamage').textContent = `${mvp.damage.toLocaleString()} DMG`;
+      $('mvpCommand').textContent = mvp.winningCommand;
+      $('mvpModal').classList.remove('hidden');
+
+      setTimeout(() => {
+        dismissMvpModal();
+      }, 7000);
+    }
+
+    function dismissMvpModal() {
+      $('mvpModal').classList.add('hidden');
+    }
+
+    function updateTwitchStatusUI(status) {
+      const badge = $('twitchStatusBadge');
+      const text = $('twitchText');
+      const dot = $('twitchDot');
+      const chatBadge = $('chatTwitchBadge');
+
+      if (status.mode === 'twitch' && status.connected) {
+        badge.classList.remove('hidden');
+        dot.className = 'h-2 w-2 rounded-full bg-emerald-400 pulse-dot';
+        text.innerHTML = `LIVE: <b class="text-emerald-300">#${esc(status.channel)}</b>`;
+        chatBadge.textContent = `TWITCH: #${esc(status.channel)}`;
+        chatBadge.className = 'rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold text-emerald-300 border border-emerald-500/20';
+      } else {
+        dot.className = 'h-2 w-2 rounded-full bg-cyan-400 pulse-dot';
+        text.textContent = 'LOCAL SIM';
+        chatBadge.textContent = 'LOCAL SIM';
+      }
+    }
+
+    function renderChatMessage(msg) {
+      const feed = $('chatFeed');
+      const item = document.createElement('div');
+      item.className = 'py-1 leading-snug';
+
+      let highlighted = esc(msg.text);
+      if (highlighted.startsWith('!bet')) {
+        highlighted = `<span class="text-cyan-300 font-bold">${highlighted}</span>`;
+      } else if (highlighted.startsWith('!')) {
+        highlighted = `<span class="text-amber-300 font-bold">${highlighted}</span>`;
+      }
+
+      item.innerHTML = `
+        <span class="rounded bg-white/10 px-1 py-0.2 text-[9px] font-bold text-slate-400">${esc(msg.role)}</span>
+        <b class="font-bold ml-1" style="color: ${msg.color}">${esc(msg.username)}:</b>
+        <span class="text-slate-300 ml-1">${highlighted}</span>
+      `;
+
+      feed.appendChild(item);
+      feed.scrollTop = feed.scrollHeight;
+      while (feed.children.length > 50) feed.firstChild.remove();
+    }
+
+    // --- Action Triggers ---
+
+    function handleBet(choice, amount) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'bet', user: 'Streamer', choice, amount }));
+      }
+    }
+
+    function triggerHazard(type) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'chat', user: 'Streamer', text: `!${type}` }));
+      }
+    }
+
+    function triggerSonicEmpButton() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'sonic_emp', user: 'Streamer' }));
+      }
+    }
+
+    function reviveStreamer() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'respawn_streamer' }));
+      }
+    }
+
+    function triggerSabotageAction(type) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'chat', user: 'Streamer', text: `!${type}` }));
+      }
+    }
+
+    function handleTwitchConnect() {
+      const channel = $('twitchInput').value.trim();
+      if (!channel) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'connect_twitch', channel }));
+      }
+    }
+
+    // --- Microphone Sonic Power Toggle ---
+    async function toggleMicrophonePower() {
+      if (!window.audioEngine) return;
+      const active = await window.audioEngine.toggleMicrophone((reason) => {
+        // Callback when shout or keyword triggered
+        console.log('[MIC EMP TRIGGERED]', reason);
+        triggerSonicEmpButton();
+      });
+
+      if (active) {
+        $('micIcon').textContent = '🎤';
+        $('micLabel').textContent = 'MIC SONIC POWER ACTIVE!';
+        $('micBtn').className = 'flex items-center gap-1.5 rounded-lg bg-emerald-950/60 px-2.5 py-1.5 border border-emerald-500/50 text-emerald-300 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse';
+      } else {
+        $('micIcon').textContent = '🎙️';
+        $('micLabel').textContent = 'ENABLE MIC SONIC POWER';
+        $('micBtn').className = 'flex items-center gap-1.5 rounded-lg bg-violet-950/50 px-2.5 py-1.5 border border-violet-500/40 text-violet-300 hover:bg-violet-900/60 transition-all cursor-pointer';
+      }
+    }
+
+    async function toggleStageMode() {
+      const videoEl = $('webcamVideo');
+      if (stageMode === 'synthwave') {
+        try {
+          webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          videoEl.srcObject = webcamStream;
+          videoEl.classList.remove('hidden');
+          stageMode = 'webcam';
+          canvasEngine.setMode('webcam');
+          $('stageIcon').textContent = '📷';
+          $('stageLabel').textContent = 'WEBCAM';
+        } catch (err) {
+          alert('Could not access webcam: ' + err.message);
+        }
+      } else {
+        if (webcamStream) {
+          webcamStream.getTracks().forEach(t => t.stop());
+          webcamStream = null;
+        }
+        videoEl.classList.add('hidden');
+        stageMode = 'synthwave';
+        canvasEngine.setMode('synthwave');
+        $('stageIcon').textContent = '🕹️';
+        $('stageLabel').textContent = 'SYNTHWAVE';
+      }
+    }
+
+    function toggleAudioSfx() {
+      if (!window.audioEngine) return;
+      const active = window.audioEngine.toggleSfx();
+      $('sfxIcon').textContent = active ? '🔊' : '🔇';
+    }
+
+    function toggleSimulator() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'simulator_toggle' }));
+      }
+    }
+
+    function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = $('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'chat', user: 'Streamer', text }));
+      }
+      input.value = '';
+    }
+
+    function quickChat(text) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'chat', user: 'Streamer', text }));
+      }
+    }
+
+    function sendEmote(emote) {
+      quickChat(`${emote} ${emote} ${emote}`);
+    }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NEON//LIVE - Streamer Control Deck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 0%, #151b36 0%, #080a18 65%, #030409 100%);
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .control-card {
+      background: rgba(15, 20, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+    }
+    .glow-cyan { text-shadow: 0 0 12px rgba(0, 240, 255, 0.6); }
+    .glow-pink { text-shadow: 0 0 12px rgba(255, 0, 127, 0.6); }
+
+    .btn-action {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-action:active {
+      transform: scale(0.97);
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    .pulse-dot {
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-6 lg:p-8">
+
+  <div class="mx-auto max-w-7xl space-y-6">
+
+    <!-- Top Streamer Bar -->
+    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+      <div class="flex items-center gap-3">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-400 font-orbitron font-black text-xl">
+          ⚙
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-orbitron text-lg md:text-xl font-bold tracking-wider text-cyan-400 glow-cyan">
+              NEON//LIVE CONTROL DECK
+            </h1>
+            <span class="rounded bg-violet-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-violet-300 border border-violet-500/30">
+              STREAMER ADMIN
+            </span>
+          </div>
+          <p class="font-mono text-xs text-slate-400">
+            Real-Time Broadcast Director & Event Injector
+          </p>
+        </div>
+      </div>
+
+      <!-- Status Pills & Quick Links -->
+      <div class="flex flex-wrap items-center gap-3 font-mono text-xs">
+        <div id="twitchStatusBadge" class="flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-1.5 border border-slate-700">
+          <span id="twitchDot" class="h-2 w-2 rounded-full bg-amber-400 pulse-dot"></span>
+          <span id="twitchText" class="text-slate-300">CHECKING SOURCE...</span>
+        </div>
+
+        <div class="flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-1.5 border border-slate-700">
+          <span id="deckWsDot" class="h-2 w-2 rounded-full bg-cyan-400 pulse-dot"></span>
+          <span id="deckWsStatus" class="text-cyan-300">LINKED</span>
+        </div>
+
+        <a href="/" target="_blank" class="flex items-center gap-1.5 rounded-lg bg-cyan-500/10 px-3 py-1.5 border border-cyan-400/30 font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all">
+          <span>📺</span>
+          <span>LAUNCH OVERLAY</span>
+        </a>
+
+        <button onclick="copyObsUrl()" class="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all cursor-pointer">
+          <span id="copyIcon">📋</span>
+          <span id="copyText">COPY OBS URL</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Real-Time Telemetry Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="control-card rounded-xl p-4">
+        <div class="font-mono text-[10px] text-slate-400 uppercase tracking-wider">LIVE MOOD</div>
+        <div id="liveMood" class="font-orbitron text-2xl font-black text-cyan-400 glow-cyan mt-1">CHILL</div>
+        <div id="liveSignals" class="font-mono text-[11px] text-slate-400 mt-0.5">0 signals</div>
+      </div>
+
+      <div class="control-card rounded-xl p-4">
+        <div class="font-mono text-[10px] text-slate-400 uppercase tracking-wider">SENTIMENT SCORE</div>
+        <div id="liveScore" class="font-orbitron text-2xl font-black text-slate-300 mt-1">+0</div>
+        <div class="font-mono text-[11px] text-slate-400 mt-0.5">Scale -100 to +100</div>
+      </div>
+
+      <div class="control-card rounded-xl p-4">
+        <div class="font-mono text-[10px] text-slate-400 uppercase tracking-wider">ACTIVE POLL</div>
+        <div id="livePollQ" class="font-orbitron text-xs font-bold text-violet-300 truncate mt-1">NONE</div>
+        <div id="livePollVotes" class="font-mono text-[11px] text-slate-400 mt-0.5">0 votes recorded</div>
+      </div>
+
+      <div class="control-card rounded-xl p-4">
+        <div class="font-mono text-[10px] text-slate-400 uppercase tracking-wider">CONNECTED OVERLAYS</div>
+        <div id="liveOverlays" class="font-orbitron text-2xl font-black text-emerald-400 mt-1">1</div>
+        <div class="font-mono text-[11px] text-slate-400 mt-0.5">WebSocket listeners</div>
+      </div>
+    </section>
+
+    <!-- Main Control Grid -->
+    <div class="grid gap-6 lg:grid-cols-2">
+
+      <!-- SECTION 1: ONE-CLICK BROADCAST ALERTS -->
+      <div class="control-card rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-pink-500 font-bold">⚡</span>
+            <h2 class="font-orbitron text-sm font-bold text-white tracking-wider">
+              ONE-CLICK BROADCAST ALERTS
+            </h2>
+          </div>
+          <span class="font-mono text-[10px] text-slate-400">INSTANT OVERLAY TRIGGER</span>
+        </div>
+
+        <!-- Hype Mode Group -->
+        <div class="rounded-xl bg-cyan-950/20 p-4 border border-cyan-500/20 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-orbitron text-xs font-bold text-cyan-300">🚀 HYPE TRAIN ALERT</span>
+            <span class="font-mono text-[10px] text-cyan-400/70">SFX: SYNTH ARPEGGIO</span>
+          </div>
+          <div class="flex gap-2">
+            <input id="hypeBody" type="text" placeholder="Custom message or target (e.g. 50 Gift Subs!)" value="Level 5 Hype Train Reached!" class="flex-grow rounded-lg bg-black/40 px-3 py-2 text-xs font-mono text-white border border-cyan-500/30 focus:outline-none focus:border-cyan-400">
+            <button onclick="triggerHypeAlert()" class="btn-action rounded-lg bg-cyan-500 px-4 py-2 font-orbitron text-xs font-black text-black hover:bg-cyan-400 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+              EMIT HYPE
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2 pt-1 font-mono text-[10px]">
+            <button onclick="setHypeText('POGGERS Clutch! 🔥')" class="rounded bg-cyan-950/40 px-2 py-1 text-cyan-300 border border-cyan-500/20 hover:bg-cyan-900/40 cursor-pointer">Preset: Clutch</button>
+            <button onclick="setHypeText('Nova gifted 20 Subs! 💜')" class="rounded bg-cyan-950/40 px-2 py-1 text-cyan-300 border border-cyan-500/20 hover:bg-cyan-900/40 cursor-pointer">Preset: 20 Subs</button>
+            <button onclick="setHypeText('WORLD RECORD PACE! 🚀')" class="rounded bg-cyan-950/40 px-2 py-1 text-cyan-300 border border-cyan-500/20 hover:bg-cyan-900/40 cursor-pointer">Preset: WR Pace</button>
+          </div>
+        </div>
+
+        <!-- Roast Mode Group -->
+        <div class="rounded-xl bg-pink-950/20 p-4 border border-pink-500/20 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-orbitron text-xs font-bold text-pink-300">🔥 ROAST MODE ALERT</span>
+            <span class="font-mono text-[10px] text-pink-400/70">SFX: BASS DROP STING</span>
+          </div>
+          <div class="flex gap-2">
+            <input id="roastBody" type="text" placeholder="Target or roast text" value="Streamer missed every single shot 💀" class="flex-grow rounded-lg bg-black/40 px-3 py-2 text-xs font-mono text-white border border-pink-500/30 focus:outline-none focus:border-pink-400">
+            <button onclick="triggerRoastAlert()" class="btn-action rounded-lg bg-pink-600 px-4 py-2 font-orbitron text-xs font-black text-white hover:bg-pink-500 transition-all cursor-pointer shadow-[0_0_15px_rgba(255,0,127,0.4)]">
+              EMIT ROAST
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2 pt-1 font-mono text-[10px]">
+            <button onclick="setRoastText('L aim detected by chat 💀')" class="rounded bg-pink-950/40 px-2 py-1 text-pink-300 border border-pink-500/20 hover:bg-pink-900/40 cursor-pointer">Preset: L Aim</button>
+            <button onclick="setRoastText('Walking into the red zone 😭')" class="rounded bg-pink-950/40 px-2 py-1 text-pink-300 border border-pink-500/20 hover:bg-pink-900/40 cursor-pointer">Preset: Bad Push</button>
+            <button onclick="setRoastText('Back to bronze lobby you go 📉')" class="rounded bg-pink-950/40 px-2 py-1 text-pink-300 border border-pink-500/20 hover:bg-pink-900/40 cursor-pointer">Preset: Bronze</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SECTION 2: STREAMER CHALLENGES -->
+      <div class="control-card rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-400 font-bold">⚡</span>
+            <h2 class="font-orbitron text-sm font-bold text-white tracking-wider">
+              DYNAMIC STREAMER CHALLENGE
+            </h2>
+          </div>
+          <span class="font-mono text-[10px] text-amber-300">LIVE QUEST HUD</span>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block font-mono text-xs text-slate-400">Custom Mission Goal:</label>
+          <div class="flex gap-2">
+            <input id="challengeInput" type="text" placeholder="Enter custom challenge..." value="1v3 Clutch with Pistol Only" class="flex-grow rounded-lg bg-black/40 px-3 py-2 text-xs font-mono text-white border border-amber-500/30 focus:outline-none focus:border-amber-400">
+            <button onclick="publishChallenge()" class="btn-action rounded-lg bg-amber-500 px-4 py-2 font-orbitron text-xs font-black text-black hover:bg-amber-400 transition-all cursor-pointer shadow-[0_0_15px_rgba(255,190,11,0.3)]">
+              POST
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-white/5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-xs text-slate-400">Random Challenge Generator:</span>
+            <button onclick="generateRandomChallenge()" class="btn-action flex items-center gap-1 rounded bg-amber-400/10 px-2.5 py-1 font-mono text-xs font-semibold text-amber-300 border border-amber-400/30 hover:bg-amber-400/20 cursor-pointer">
+              <span>🎲</span>
+              <span>GENERATE & POST</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 font-mono text-[11px]">
+            <button onclick="setChallengeText('No jumping for 3 minutes!')" class="rounded bg-white/5 p-2 text-left text-slate-300 hover:bg-white/10 border border-white/5 cursor-pointer">🏃 No Jumping 3m</button>
+            <button onclick="setChallengeText('Mute mic and explain with charades')" class="rounded bg-white/5 p-2 text-left text-slate-300 hover:bg-white/10 border border-white/5 cursor-pointer">🔇 Charades Only</button>
+            <button onclick="setChallengeText('Invert mouse sensitivity next round')" class="rounded bg-white/5 p-2 text-left text-slate-300 hover:bg-white/10 border border-white/5 cursor-pointer">🔄 Inverted Aim</button>
+            <button onclick="setChallengeText('Win round without using shields or armor')" class="rounded bg-white/5 p-2 text-left text-slate-300 hover:bg-white/10 border border-white/5 cursor-pointer">🛡️ Zero Shields</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SECTION 3: COMMUNITY POLL CONTROLLER -->
+      <div class="control-card rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-violet-400 font-bold">📊</span>
+            <h2 class="font-orbitron text-sm font-bold text-white tracking-wider">
+              COMMUNITY POLL CONTROLLER
+            </h2>
+          </div>
+          <span class="font-mono text-[10px] text-violet-300">REAL-TIME VOTING</span>
+        </div>
+
+        <div class="space-y-3 font-mono text-xs">
+          <div>
+            <label class="block text-slate-400 mb-1">Poll Question:</label>
+            <input id="pollQ" type="text" value="Which Loadout for Next Game?" class="w-full rounded-lg bg-black/40 px-3 py-2 text-white border border-violet-500/30 focus:outline-none focus:border-violet-400">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Options (Pipe separated: Opt 1 | Opt 2 | Opt 3):</label>
+            <input id="pollOpts" type="text" value="Neon Sniper | Plasma SMG | Dual Pistols" class="w-full rounded-lg bg-black/40 px-3 py-2 text-white border border-violet-500/30 focus:outline-none focus:border-violet-400">
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button onclick="launchPoll()" class="btn-action flex-grow rounded-lg bg-violet-600 py-2.5 font-orbitron text-xs font-black text-white hover:bg-violet-500 transition-all cursor-pointer shadow-[0_0_15px_rgba(138,43,226,0.4)]">
+              LAUNCH LIVE POLL
+            </button>
+            <button onclick="endCurrentPoll()" class="btn-action rounded-lg bg-slate-800 px-4 py-2.5 font-orbitron text-xs font-bold text-slate-300 hover:bg-slate-700 transition-all cursor-pointer border border-white/10">
+              END POLL
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-white/5">
+          <div class="font-mono text-[11px] text-slate-400 mb-2">Preset Polls:</div>
+          <div class="flex flex-wrap gap-2 font-mono text-[10px]">
+            <button onclick="presetPoll('Next Drop Location?', 'Cyber City | Desert Outpost | Orbital Hub')" class="rounded bg-violet-950/40 px-2.5 py-1 text-violet-300 border border-violet-500/20 hover:bg-violet-900/40 cursor-pointer">Drop Spot</button>
+            <button onclick="presetPoll('Rate Streamer Clutch Play', '10/10 Goat | 6/10 Mid | 0/10 Choke')" class="rounded bg-violet-950/40 px-2.5 py-1 text-violet-300 border border-violet-500/20 hover:bg-violet-900/40 cursor-pointer">Rate Play</button>
+            <button onclick="presetPoll('Next Game To Play', 'Valorant | Cyberpunk | Elden Ring')" class="rounded bg-violet-950/40 px-2.5 py-1 text-violet-300 border border-violet-500/20 hover:bg-violet-900/40 cursor-pointer">Game Pick</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SECTION 4: SIMULATE LIVE CHAT BURSTS -->
+      <div class="control-card rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-cyan-400 font-bold">💬</span>
+            <h2 class="font-orbitron text-sm font-bold text-white tracking-wider">
+              SIMULATE LIVE CHAT BURSTS
+            </h2>
+          </div>
+          <span class="font-mono text-[10px] text-cyan-300">SENTIMENT SHIFT ENGINE</span>
+        </div>
+
+        <p class="font-mono text-xs text-slate-400 leading-relaxed">
+          Inject bursts of multi-user messages to simulate dramatic crowd reactions and watch the radar swing in real time:
+        </p>
+
+        <div class="grid grid-cols-2 gap-3 font-orbitron text-xs font-bold">
+          <!-- Hype Burst -->
+          <button onclick="burstChat('hype', 6)" class="btn-action flex flex-col items-center justify-center p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all cursor-pointer shadow-[0_0_12px_rgba(0,240,255,0.15)]">
+            <span class="text-lg">🚀</span>
+            <span class="mt-1">HYPE BURST</span>
+            <span class="font-mono text-[9px] text-cyan-400/70 font-normal mt-0.5">+6 Positive Msgs</span>
+          </button>
+
+          <!-- Salty Burst -->
+          <button onclick="burstChat('salty', 6)" class="btn-action flex flex-col items-center justify-center p-3.5 rounded-xl bg-pink-950/40 border border-pink-500/30 text-pink-300 hover:bg-pink-900/50 hover:border-pink-400 transition-all cursor-pointer shadow-[0_0_12px_rgba(255,0,127,0.15)]">
+            <span class="text-lg">💀</span>
+            <span class="mt-1">SALTY BURST</span>
+            <span class="font-mono text-[9px] text-pink-400/70 font-normal mt-0.5">+6 Toxic/Salty Msgs</span>
+          </button>
+
+          <!-- Twitch Raid -->
+          <button onclick="burstChat('raid', 8)" class="btn-action flex flex-col items-center justify-center p-3.5 rounded-xl bg-violet-950/40 border border-violet-500/30 text-violet-300 hover:bg-violet-900/50 hover:border-violet-400 transition-all cursor-pointer shadow-[0_0_12px_rgba(138,43,226,0.15)]">
+            <span class="text-lg">🎉</span>
+            <span class="mt-1">TWITCH RAID</span>
+            <span class="font-mono text-[9px] text-violet-400/70 font-normal mt-0.5">8 Raider Wave</span>
+          </button>
+
+          <!-- Neutral Chatter -->
+          <button onclick="burstChat('neutral', 5)" class="btn-action flex flex-col items-center justify-center p-3.5 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all cursor-pointer">
+            <span class="text-lg">💬</span>
+            <span class="mt-1">CASUAL CHATTER</span>
+            <span class="font-mono text-[9px] text-slate-400 font-normal mt-0.5">5 Neutral Comments</span>
+          </button>
+        </div>
+
+        <!-- Custom Single Message & Reset -->
+        <div class="pt-2 border-t border-white/5 flex gap-2 font-mono text-xs">
+          <input id="singleMsgInput" type="text" placeholder="Send manual chat message as streamer..." class="flex-grow rounded-lg bg-black/40 px-3 py-2 text-white border border-white/10 focus:outline-none focus:border-cyan-400">
+          <button onclick="sendSingleMessage()" class="btn-action rounded-lg bg-white/10 px-3 py-2 font-bold text-slate-200 hover:bg-white/20 cursor-pointer">
+            SEND
+          </button>
+          <button onclick="resetFeed()" class="btn-action rounded-lg bg-red-950/30 border border-red-500/30 px-3 py-2 font-bold text-red-400 hover:bg-red-900/40 cursor-pointer">
+            RESET
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Live Event Log & Action History -->
+    <div class="control-card rounded-2xl p-6">
+      <div class="flex items-center justify-between border-b border-white/5 pb-3 mb-3">
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+          <span class="font-semibold text-slate-300 uppercase tracking-wider">EVENT INJECTION AUDIT LOG</span>
+        </div>
+        <button onclick="clearLogs()" class="font-mono text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer">
+          CLEAR LOGS
+        </button>
+      </div>
+      <div id="deckLog" class="h-36 overflow-y-auto font-mono text-xs space-y-1.5 text-slate-400">
+        <!-- Live logs appear here -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    // --- WebSocket Link ---
+    let ws = null;
+    function connectDeckWS() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+      ws.onopen = () => {
+        $('deckWsStatus').textContent = 'LINKED';
+        $('deckWsDot').className = 'h-2 w-2 rounded-full bg-cyan-400 pulse-dot';
+        addLog('SYSTEM', 'WebSocket connection established with Overlay server.');
+      };
+
+      ws.onclose = () => {
+        $('deckWsStatus').textContent = 'RECONNECTING';
+        $('deckWsDot').className = 'h-2 w-2 rounded-full bg-amber-400 pulse-dot';
+        setTimeout(connectDeckWS, 2000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleDeckMessage(data);
+        } catch (e) {}
+      };
+    }
+
+    function handleDeckMessage(data) {
+      if (data.type === 'snapshot') {
+        if (data.status) updateStatusUI(data.status);
+        if (data.sentiment) updateTelemetrySentiment(data.sentiment);
+        if (data.poll) updateTelemetryPoll(data.poll);
+      } else if (data.type === 'status') {
+        updateStatusUI(data);
+      } else if (data.type === 'sentiment') {
+        updateTelemetrySentiment(data.sentiment);
+      } else if (data.type === 'poll') {
+        updateTelemetryPoll(data.poll);
+        addLog('POLL', `${data.action.toUpperCase()}: ${data.poll.question}`);
+      } else if (data.type === 'alert') {
+        addLog('ALERT', `[${data.style.toUpperCase()}] ${data.title}: ${data.body}`);
+      } else if (data.type === 'challenge') {
+        $('challengeInput').value = data.text;
+        addLog('CHALLENGE', `Updated to: "${data.text}"`);
+      } else if (data.type === 'chat') {
+        $('liveSignals').textContent = `${data.message.username}: ${data.message.text.slice(0, 25)}...`;
+      }
+    }
+
+    function updateStatusUI(s) {
+      const dot = $('twitchDot');
+      const txt = $('twitchText');
+      if (s.mode === 'twitch' && s.connected) {
+        dot.className = 'h-2 w-2 rounded-full bg-emerald-400 pulse-dot';
+        txt.innerHTML = `TWITCH: <b class="text-emerald-300">#${s.channel}</b>`;
+      } else if (s.mode === 'twitch' && s.connecting) {
+        dot.className = 'h-2 w-2 rounded-full bg-amber-400 pulse-dot';
+        txt.innerHTML = `CONNECTING: <b class="text-amber-300">#${s.channel}</b>`;
+      } else {
+        dot.className = 'h-2 w-2 rounded-full bg-cyan-400 pulse-dot';
+        txt.innerHTML = `LOCAL: <b class="text-cyan-300">MOCK MODE</b>`;
+      }
+    }
+
+    function updateTelemetrySentiment(s) {
+      $('liveMood').textContent = s.mood;
+      $('liveMood').className = `font-orbitron text-2xl font-black mt-1 ${
+        s.mood === 'HYPE' ? 'text-cyan-400 glow-cyan' : s.mood === 'SALTY' ? 'text-pink-400 glow-pink' : 'text-violet-300'
+      }`;
+      $('liveScore').textContent = (s.score > 0 ? '+' : '') + s.score;
+      $('liveScore').className = `font-orbitron text-2xl font-black mt-1 ${
+        s.score > 15 ? 'text-cyan-300' : s.score < -15 ? 'text-pink-400' : 'text-slate-300'
+      }`;
+      $('liveSignals').textContent = `${s.total} signals (${s.positive} pos / ${s.negative} neg)`;
+    }
+
+    function updateTelemetryPoll(p) {
+      if (!p || !p.options) {
+        $('livePollQ').textContent = 'NONE';
+        $('livePollVotes').textContent = '0 votes recorded';
+        return;
+      }
+      $('livePollQ').textContent = p.question;
+      const votes = p.options.reduce((s, o) => s + (o.votes || 0), 0);
+      $('livePollVotes').textContent = `${votes} votes recorded`;
+    }
+
+    // --- Helper to Send Command over WebSocket / REST ---
+    function sendCommand(action, payload = {}) {
+      const msg = { action, ...payload };
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+      } else {
+        // Fallback to REST
+        fetch('/api/' + (action === 'alert' ? 'alert' : action === 'challenge' ? 'challenge' : 'poll'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(console.error);
+      }
+    }
+
+    // --- Action Handlers ---
+    function triggerHypeAlert() {
+      const body = $('hypeBody').value.trim() || 'HYPE TRAIN LEVEL 5!';
+      sendCommand('alert', { style: 'hype', title: 'HYPE TRAIN', body });
+      addLog('ACTION', `Emitted Hype Alert: ${body}`);
+    }
+
+    function setHypeText(txt) {
+      $('hypeBody').value = txt;
+      triggerHypeAlert();
+    }
+
+    function triggerRoastAlert() {
+      const body = $('roastBody').value.trim() || 'L Aim Detected by Chat 💀';
+      sendCommand('alert', { style: 'roast', title: 'ROAST MODE', body });
+      addLog('ACTION', `Emitted Roast Alert: ${body}`);
+    }
+
+    function setRoastText(txt) {
+      $('roastBody').value = txt;
+      triggerRoastAlert();
+    }
+
+    function publishChallenge() {
+      const text = $('challengeInput').value.trim() || 'Clutch the round with pistol only!';
+      sendCommand('challenge', { text });
+      addLog('ACTION', `Published Challenge: ${text}`);
+    }
+
+    function setChallengeText(txt) {
+      $('challengeInput').value = txt;
+      publishChallenge();
+    }
+
+    const RANDOM_CHALLENGES = [
+      'Win round with pistol only',
+      'No jumping for 3 minutes!',
+      'Mute mic and explain with charades',
+      'Invert mouse sensitivity next round',
+      'Win round without using shields or armor',
+      'Blindfolded boss fight attempt',
+      'Floor is lava: cannot touch ground outside buildings',
+      'Speedrun next area in under 60 seconds'
+    ];
+
+    function generateRandomChallenge() {
+      const pick = RANDOM_CHALLENGES[(Math.random() * RANDOM_CHALLENGES.length) | 0];
+      setChallengeText(pick);
+    }
+
+    function launchPoll() {
+      const q = $('pollQ').value.trim() || 'CHAT DECIDES';
+      const rawOpts = $('pollOpts').value;
+      const opts = rawOpts.split('|').map(s => s.trim()).filter(Boolean);
+      if (opts.length < 2) {
+        alert('Please provide at least 2 options separated by |');
+        return;
+      }
+      sendCommand('poll', { question: q, options: opts });
+      addLog('ACTION', `Started Poll: "${q}" with [${opts.join(', ')}]`);
+    }
+
+    function endCurrentPoll() {
+      sendCommand('poll_end');
+      addLog('ACTION', 'Ended current poll');
+    }
+
+    function presetPoll(q, optsStr) {
+      $('pollQ').value = q;
+      $('pollOpts').value = optsStr;
+      launchPoll();
+    }
+
+    function burstChat(type, count) {
+      fetch('/api/chat-burst', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, count })
+      }).then(r => r.json()).then(data => {
+        addLog('BURST', `Triggered ${type.toUpperCase()} burst with ${data.count} messages.`);
+      });
+    }
+
+    function sendSingleMessage() {
+      const msg = $('singleMsgInput').value.trim();
+      if (!msg) return;
+      fetch('/api/mock/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'StreamerAdmin', message: msg })
+      }).then(() => {
+        addLog('CHAT', `Manual message sent: "${msg}"`);
+        $('singleMsgInput').value = '';
+      });
+    }
+
+    function resetFeed() {
+      if (confirm('Reset sentiment, poll, and chat history on the overlay?')) {
+        fetch('/api/reset', { method: 'POST' }).then(() => {
+          addLog('RESET', 'Cleared chat history, poll, and neutralized sentiment.');
+        });
+      }
+    }
+
+    function addLog(tag, text) {
+      const log = $('deckLog');
+      const time = new Date().toLocaleTimeString();
+      const item = document.createElement('div');
+      item.innerHTML = `<span class="text-slate-500">[${time}]</span> <b class="text-cyan-400">[${tag}]</b> <span class="text-slate-200">${text}</span>`;
+      log.prepend(item);
+      while (log.children.length > 50) log.lastChild.remove();
+    }
+
+    function clearLogs() {
+      $('deckLog').innerHTML = '';
+    }
+
+    function copyObsUrl() {
+      const url = `${location.protocol}//${location.host}/`;
+      navigator.clipboard.writeText(url).then(() => {
+        $('copyText').textContent = 'COPIED!';
+        $('copyIcon').textContent = '✅';
+        setTimeout(() => {
+          $('copyText').textContent = 'COPY OBS URL';
+          $('copyIcon').textContent = '📋';
+        }, 2000);
+      });
+    }
+
+    // Refresh health status every 5 seconds
+    setInterval(() => {
+      fetch('/health').then(r => r.json()).then(data => {
+        if (data.clients !== undefined) {
+          $('liveOverlays').textContent = data.clients;
+        }
+      }).catch(() => {});
+    }, 5000);
+
+    connectDeckWS();
+  </script>
+</body>
+</html>
